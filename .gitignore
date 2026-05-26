@@ -1,0 +1,31 @@
+# Virtual Environments
+venv/
+ENV/
+.venv/
+
+# Environment Secrets
+.env
+.env.local
+.env.*.local
+
+# Python Caches
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# Databases
+*.db
+*.sqlite3
+uploads/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
