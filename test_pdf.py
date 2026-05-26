@@ -1,9 +1,5 @@
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
-import os
-
-# Create uploads folder if it doesn't exist
-os.makedirs("uploads", exist_ok=True)
 
 # Create a simple test PDF
 pdf_path = "uploads/test_contract.pdf"
