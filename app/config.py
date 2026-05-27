@@ -3,9 +3,9 @@ from pydantic import computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
-    # 1. Define individual database pieces with default fallbacks
+    # 1. Define individual database pieces with generic default fallbacks
     DB_USER: str = "postgres"
-    DB_PASSWORD: str = "Lee@2026"
+    DB_PASSWORD: str = "your_password_here"  # 👈 REMOVED YOUR REAL PASSWORD HERE
     DB_HOST: str = "localhost"
     DB_PORT: str = "5432"
     DB_NAME: str = "compliance_mvp"

@@ -1,31 +1,43 @@
-# Virtual Environments
+# --- Virtual Environments ---
+v/
 venv/
-ENV/
 .venv/
+env/
+ENV/
 
-# Environment Secrets
+# --- Environment Secrets & Credentials ---
 .env
 .env.local
-.env.*.local
+.env.development
+.env.production
+*.env
 
-# Python Caches
+# --- Python System Caches & Compiled Files ---
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
 .pytest_cache/
+.ruff_cache/
+.mypy_cache/
 
-# Databases
+# --- Databases (If you use local file-based DBs or dumps) ---
 *.db
 *.sqlite3
-uploads/
+*.sql
+*.log
 
-# IDE
+# --- IDEs and Text Editors ---
 .vscode/
 .idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
 *.swp
-*.swo
 
-# OS
-.DS_Store
+# --- OS Generated Files ---
 Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
