@@ -1,21 +1,25 @@
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
+import os
 
-# Create a simple test PDF
-pdf_path = "uploads/test_contract.pdf"
+os.makedirs("uploads", exist_ok=True)
+
+pdf_path = "uploads/bad_contract.pdf"
 c = canvas.Canvas(pdf_path, pagesize=letter)
 
-# Write text to PDF
-c.drawString(100, 750, "EMPLOYMENT CONTRACT")
+# Write VIOLATIONS in the PDF
+c.drawString(100, 750, "EMPLOYMENT AGREEMENT")
 c.drawString(100, 700, "")
-c.drawString(100, 650, "This is a test employment contract.")
+c.drawString(100, 650, "This employment agreement has the following terms:")
 c.drawString(100, 600, "")
-c.drawString(100, 550, "1. The employer agrees to pay the employee $50,000 per year.")
-c.drawString(100, 500, "2. The employee agrees to work 40 hours per week.")
-c.drawString(100, 450, "3. Either party may terminate with 2 weeks notice.")
-c.drawString(100, 400, "4. The employee will receive health insurance benefits.")
-c.drawString(100, 350, "5. Non-compete clause: Employee cannot work for competitors for 1 year.")
+c.drawString(100, 550, "1. Employee must work 60 hours per week")
+c.drawString(100, 500, "2. No compensation is provided")
+c.drawString(100, 450, "3. No benefits or insurance")
+c.drawString(100, 400, "4. No termination clause specified")
+c.drawString(100, 350, "5. Unlimited non-compete: Cannot work anywhere for 10 years")
+c.drawString(100, 300, "")
+c.drawString(100, 250, "DATA HANDLING:")
+c.drawString(100, 200, "No data protection or privacy measures are included")
 
-# Save the PDF
 c.save()
-print(f"✓ Created test PDF: {pdf_path}")
+print(f"✓ Created BAD contract: {pdf_path}")

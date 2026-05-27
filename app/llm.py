@@ -24,66 +24,63 @@ def analyze_chunk_rule_based(
 ) -> ComplianceReport:
     """
     Analyze contract chunk using keyword matching (free, fast, reliable).
-    
-    Args:
-        chunk_text: Contract text to analyze
-        applicable_rules: Similar rules from vector search
-    
-    Returns:
-        ComplianceReport with findings
     """
     
     findings = []
     chunk_lower = chunk_text.lower()
     
     # Define violation keywords for each rule
+    # These look for RED FLAGS (things that shouldn't be there or are missing)
     violation_keywords = {
         1: {  # NDA rule
-            "keywords": ["no nda", "no confidential", "no definition", "undefined confidential"],
+            "keywords": ["nda", "confidential", "proprietary", "secret"],
+            "red_flags": ["no confidential", "undefined confidential", "no definition"],
             "severity": "HIGH",
-            "description": "NDA missing required definition of confidential information"
+            "description": "NDA clause needs clearer confidential information definition"
         },
         2: {  # Employment rule
-            "keywords": ["no compensation", "without pay", "unpaid", "no salary", "no benefits", "50 hours"],
+            "keywords": ["employment", "employee", "work", "salary", "compensation", "payment"],
+            "red_flags": ["no salary", "no compensation", "without pay", "unpaid", "no benefits"],
             "severity": "HIGH",
-            "description": "Employment contract missing compensation or benefits clause"
+            "description": "Employment contract should specify salary and benefits"
         },
         3: {  # SLA rule
-            "keywords": ["no uptime", "no sla", "no service level", "no response time"],
+            "keywords": ["service level", "sla", "uptime", "availability", "response time"],
+            "red_flags": ["no uptime", "no sla", "no service level", "no response time"],
             "severity": "MEDIUM",
-            "description": "Service agreement missing SLA or uptime definitions"
+            "description": "Service agreement needs defined SLA and uptime guarantees"
         },
         4: {  # Data rule
-            "keywords": ["no data protection", "no gdpr", "no privacy", "no data processing"],
+            "keywords": ["data", "processing", "privacy", "gdpr", "protection"],
+            "red_flags": ["no data protection", "no gdpr", "no privacy"],
             "severity": "HIGH",
-            "description": "Data agreement missing GDPR or data protection compliance"
+            "description": "Data processing agreement should include GDPR compliance"
         },
         5: {  # Service rule
-            "keywords": ["no liability", "unlimited liability", "no cap", "no limit"],
+            "keywords": ["liability", "indemnity", "damage", "limitation"],
+            "red_flags": ["unlimited liability", "no liability cap", "no limit"],
             "severity": "MEDIUM",
-            "description": "Service agreement missing liability caps or limits"
+            "description": "Service agreement should cap liability exposure"
         },
     }
     
-    # Check each rule's keywords
+    # Check each rule
     for rule_id, rule_config in violation_keywords.items():
-        for keyword in rule_config["keywords"]:
-            if keyword in chunk_lower:
-                # Find the evidence (context around keyword)
-                keyword_pos = chunk_lower.find(keyword)
+        # First check if red flags exist (explicit violations)
+        for red_flag in rule_config["red_flags"]:
+            if red_flag in chunk_lower:
+                keyword_pos = chunk_lower.find(red_flag)
                 start = max(0, keyword_pos - 80)
-                end = min(len(chunk_text), keyword_pos + len(keyword) + 80)
+                end = min(len(chunk_text), keyword_pos + len(red_flag) + 80)
                 evidence = chunk_text[start:end].strip()
                 
-                # Create finding
                 finding = ComplianceFinding(
                     rule_id=rule_id,
                     severity=rule_config["severity"],
                     description=rule_config["description"],
                     evidence=evidence
                 )
-                
                 findings.append(finding)
-                break  # Only one violation per rule per chunk
+                break
     
     return ComplianceReport(findings=findings)
