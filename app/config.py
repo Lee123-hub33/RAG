@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     DB_HOST: str = "localhost"
     DB_PORT: str = "5432"
     DB_NAME: str = "compliance_mvp"
+    GEMINI_API_KEY: str = "AIzaSyAMXFth1xbrvEQcqQiM4L999JXoS-_AzXU"
 
     # 2. Let Pydantic build the encoded URL dynamically
     @computed_field
