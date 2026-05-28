@@ -1,83 +1,138 @@
 from fastapi import FastAPI, UploadFile, File
 from fastapi.responses import JSONResponse
 import os
-from app.pdf_extractor import extract_text_from_pdf, chunk_text
-from app.embeddings import find_similar_rules
-from app.llm import analyze_chunk_rule_based
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session
+from app.config import settings
+from app.models import Document, Base
+from app.tasks import process_document
 
-app = FastAPI(title="Compliance RAG")
+# Create database engine
+engine = create_engine(settings.DATABASE_URL)
+
+# Create FastAPI app
+app = FastAPI(title="Compliance RAG - Async")
+
+# Create uploads folder
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+# Dependency: get database session
+def get_db():
+    db = Session(engine)
+    try:
+        yield db
+    finally:
+        db.close()
 
 @app.post("/upload")
 async def upload_pdf(file: UploadFile = File(...)):
     """
-    Full RAG pipeline with rule-based matching:
-    1. Extract PDF text
-    2. Chunk text
-    3. Find similar rules (vector search)
-    4. Analyze with keyword matching
-    5. Return findings
+    Upload PDF and queue for processing.
+    Returns immediately with document_id.
     """
     
-    # Step 1: Save file
-    file_path = os.path.join(UPLOAD_DIR, file.filename)
-    with open(file_path, "wb") as f:
-        content = await file.read()
-        f.write(content)
-    print(f"✓ File saved: {file_path}")
+    db = Session(engine)
     
-    # Step 2: Extract text
     try:
-        full_text = extract_text_from_pdf(file_path)
-        print(f"✓ Extracted {len(full_text)} characters")
+        # Step 1: Save file
+        file_path = os.path.join(UPLOAD_DIR, file.filename)
+        with open(file_path, "wb") as f:
+            content = await file.read()
+            f.write(content)
+        print(f"✓ File saved: {file_path}")
+        
+        # Step 2: Create document record
+        doc = Document(
+            filename=file.filename,
+            file_path=file_path,
+            status="PENDING"
+        )
+        db.add(doc)
+        db.commit()
+        db.refresh(doc)
+        print(f"✓ Document {doc.id} created in database")
+        
+        # Step 3: Queue background job
+        task = process_document.delay(doc.id, file_path)
+        print(f"✓ Job queued with task_id: {task.id}")
+        
+        # Step 4: Return immediately (202 Accepted)
+        return {
+            "status": "ACCEPTED",
+            "document_id": doc.id,
+            "filename": file.filename,
+            "message": "Processing started. Use GET /document/{id} to check status"
+        }
+    
     except Exception as e:
+        print(f"✗ Error uploading file: {e}")
         return JSONResponse(
             status_code=400,
-            content={"error": f"PDF extraction failed: {str(e)}"}
+            content={"error": str(e)}
         )
+    finally:
+        db.close()
+
+@app.get("/document/{document_id}")
+async def get_document(document_id: int):
+    """
+    Check document processing status and get findings.
+    """
     
-    # Step 3: Chunk text
-    chunks = chunk_text(full_text, chunk_size=800, overlap=150)
-    print(f"✓ Created {len(chunks)} chunks")
+    db = Session(engine)
     
-    # Step 4: Analyze each chunk
-    all_findings = []
-    for i, chunk in enumerate(chunks):
-        print(f"  Analyzing chunk {i+1}/{len(chunks)}...")
+    try:
+        # Get document
+        doc = db.query(Document).filter_by(id=document_id).first()
         
-        # Find similar rules (vector search)
-        similar_rules = find_similar_rules(chunk, limit=5)
+        if not doc:
+            return JSONResponse(
+                status_code=404,
+                content={"error": "Document not found"}
+            )
         
-        # Analyze with rule-based matching (fast, free)
-        report = analyze_chunk_rule_based(chunk, similar_rules)
+        # Get findings (only if completed)
+        findings = []
+        if doc.status == "COMPLETED":
+            from app.models import AuditFinding
+            findings_data = db.query(AuditFinding).filter_by(document_id=document_id).all()
+            findings = [
+                {
+                    "rule_id": f.rule_id,
+                    "severity": f.severity,
+                    "description": f.description,
+                    "evidence": f.evidence
+                }
+                for f in findings_data
+            ]
         
-        # Add findings
-        all_findings.extend(report.findings)
+        # Return status
+        return {
+            "document_id": document_id,
+            "filename": doc.filename,
+            "status": doc.status,
+            "created_at": doc.created_at.isoformat() if doc.created_at else None,
+            "completed_at": doc.completed_at.isoformat() if doc.completed_at else None,
+            "error_message": doc.error_message,
+            "findings_count": len(findings),
+            "findings": findings
+        }
     
-    print(f"✓ Found {len(all_findings)} compliance issues")
-    
-    # Step 5: Return results
-    return {
-        "status": "success",
-        "filename": file.filename,
-        "file_size_chars": len(full_text),
-        "chunks_processed": len(chunks),
-        "findings_count": len(all_findings),
-        "findings": [
-            {
-                "rule_id": f.rule_id,
-                "severity": f.severity,
-                "description": f.description,
-                "evidence": f.evidence
-            }
-            for f in all_findings
-        ]
-    }
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"error": str(e)}
+        )
+    finally:
+        db.close()
 
 @app.get("/")
 async def root():
     return {
-        "message": "Compliance RAG API running",
-        "method": "Rule-based keyword matching (free, fast, reliable)"
+        "message": "Compliance RAG API - Async Processing",
+        "endpoints": {
+            "POST /upload": "Upload PDF (returns immediately with document_id)",
+            "GET /document/{id}": "Check status and get findings"
+        }
     }

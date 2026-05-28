@@ -3,18 +3,10 @@ from app.pdf_extractor import extract_text_from_pdf, chunk_text
 from app.embeddings import find_similar_rules
 from app.llm import analyze_chunk_rule_based
 from app.config import settings
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session
-from app.models import Document, AuditFinding, DocumentChunk
+from app.models import Document, AuditFinding, DocumentChunk, Base
 from datetime import datetime
-from sentence_transformers import SentenceTransformer
-
-# Pre-load model ONCE (before Celery starts)
-print("=" * 60)
-print("Loading embedding model...")
-model = SentenceTransformer("all-MiniLM-L6-v2")
-print("✓ Model loaded and ready!")
-print("=" * 60)
 
 # Create database engine
 engine = create_engine(settings.DATABASE_URL)
@@ -43,9 +35,8 @@ def process_document(self, document_id: int, file_path: str):
         print(f"✓ Processing document {document_id}")
         
         # Step 1: Extract text from PDF
-        print(f"  Extracting text from PDF...")
+        print(f"  Extracting text...")
         full_text = extract_text_from_pdf(file_path)
-        print(f"  ✓ Extracted {len(full_text)} characters")
         
         # Step 2: Chunk text
         print(f"  Chunking text...")
@@ -67,7 +58,7 @@ def process_document(self, document_id: int, file_path: str):
         for i, chunk in enumerate(chunks):
             print(f"  Analyzing chunk {i+1}/{len(chunks)}...")
             
-            # Find similar rules using vector search
+            # Find similar rules
             similar_rules = find_similar_rules(chunk, limit=5)
             
             # Analyze with rule-based matching
@@ -86,7 +77,7 @@ def process_document(self, document_id: int, file_path: str):
                 all_findings.append(finding)
         
         db.commit()
-        print(f"  ✓ Found {len(all_findings)} compliance violations")
+        print(f"  ✓ Found {len(all_findings)} violations")
         
         # Update document status to COMPLETED
         doc.status = "COMPLETED"
@@ -94,7 +85,6 @@ def process_document(self, document_id: int, file_path: str):
         db.commit()
         
         print(f"✓ Document {document_id} processing complete!")
-        print(f"  Violations found: {len(all_findings)}")
         
         return {
             "status": "success",

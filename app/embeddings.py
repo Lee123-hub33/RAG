@@ -55,9 +55,9 @@ def seed_rule_embeddings():
             # Convert to string format for pgvector
             embedding_str = "[" + ",".join(str(x) for x in embedding) + "]"
             
-            # Store in database
+            # Store in database using CAST
             conn.execute(text(
-                "UPDATE compliance_rules SET embedding = :embedding::vector WHERE id = :id"
+                "UPDATE compliance_rules SET embedding = CAST(:embedding AS vector) WHERE id = :id"
             ), {"embedding": embedding_str, "id": rule_id})
         
         conn.commit()
